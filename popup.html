@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AIフォーム自動入力</title>
+  <style>
+    body {
+      width: 350px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 6px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    small {
+      color: #666;
+      display: block;
+      margin-top: 3px;
+      font-size: 0.8em;
+    }
+    button {
+      background-color: #4285F4;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 5px;
+    }
+    button:hover {
+      background-color: #3367D6;
+    }
+    .saved-message {
+      color: green;
+      margin-top: 10px;
+      display: none;
+    }
+    h2 {
+      margin-top: 0;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .container {
+      padding: 6px 12px;
+    }
+  </style>
+</head>
+<body>
+  <h2>AIフォーム自動入力</h2>
+  
+  <div class="container">
+    <div class="form-group">
+      <label for="apiKey">OpenAI APIキー:</label>
+      <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+      <small>APIキーは安全に保存され、フォーム自動入力のために使用されます</small>
+    </div>
+    
+    <div class="form-group">
+      <label for="model">AIモデル:</label>
+      <select id="model">
+        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        <option value="gpt-4">GPT-4</option>
+      </select>
+    </div>
+    
+    <button id="saveSettingsButton">設定を保存</button>
+    <button id="autoFillButton">フォームを自動入力</button>
+    <p id="settingsSavedMessage" class="saved-message">設定を保存しました！</p>
+    <p id="autoFillMessage" class="saved-message">自動入力を開始しました！</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 
