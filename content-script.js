@@ -56,99 +56,8 @@ function getElementPosition(element) {
   };
 }
 
-// 入力フィールド周辺のテキストを解析して目的を推測する関数
-function analyzeSurroundingText(element, maxDistance = 150) {
-  // 現在の要素の位置を取得
-  const elementPos = getElementPosition(element);
-  
-  // 近くのテキスト要素を探す（目安として150ピクセル以内）
-  const allTextElements = [];
-  
-  // ドキュメント内のテキストノードを再帰的に探索
-  function findTextNodes(node, depth = 0) {
-    // 最大深度を制限して無限ループを防止
-    if (depth > 15) return;
-    
-    // テキストノードの場合
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim();
-      if (text && text.length > 1) {  // 空白や単一文字は除外
-        // 親要素がvisibleかチェック
-        const parentElement = node.parentElement;
-        if (parentElement && isElementVisible(parentElement)) {
-          // 親要素の位置を取得
-          const pos = getElementPosition(parentElement);
-          
-          // 入力フィールドとの距離を計算
-          const horizontalDistance = Math.min(
-            Math.abs(pos.right - elementPos.left),
-            Math.abs(pos.left - elementPos.right)
-          );
-          
-          const verticalDistance = Math.min(
-            Math.abs(pos.bottom - elementPos.top),
-            Math.abs(pos.top - elementPos.bottom)
-          );
-          
-          const totalDistance = horizontalDistance + verticalDistance;
-          
-          // 特定の距離以内のテキストノードを収集
-          if (totalDistance < maxDistance) {
-            allTextElements.push({
-              text: text,
-              distance: totalDistance,
-              position: {
-                // 相対位置を記録（上下左右）
-                above: pos.bottom <= elementPos.top,
-                below: pos.top >= elementPos.bottom,
-                left: pos.right <= elementPos.left,
-                right: pos.left >= elementPos.right
-              }
-            });
-          }
-        }
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      // 要素ノードの場合は子ノードを再帰的に探索
-      for (let i = 0; i < node.childNodes.length; i++) {
-        findTextNodes(node.childNodes[i], depth + 1);
-      }
-    }
-  }
-  
-  // ドキュメント全体を探索
-  findTextNodes(document.body);
-  
-  // 距離が近い順にソート
-  allTextElements.sort((a, b) => a.distance - b.distance);
-  
-  // 上位5つのテキスト要素を取得
-  const nearestTexts = allTextElements.slice(0, 5);
-  
-  // 最も関連性の高いテキストを推測
-  let bestLabel = '';
-  
-  // 優先度1: 上または左にあるテキスト（一般的なラベルの位置）
-  const aboveOrLeftTexts = nearestTexts.filter(t => t.position.above || t.position.left);
-  if (aboveOrLeftTexts.length > 0) {
-    // 距離が最も近いものを選択
-    bestLabel = aboveOrLeftTexts[0].text;
-  } else if (nearestTexts.length > 0) {
-    // それ以外の場合は単純に最も近いテキスト
-    bestLabel = nearestTexts[0].text;
-  }
-  
-  // すべての近接テキストも返す（コンテキスト情報として）
-  const surroundingText = nearestTexts.map(t => t.text).join(' | ');
-  
-  return {
-    bestLabel: bestLabel,
-    surroundingText: surroundingText
-  };
-}
-
 // OpenAIのAPIを使ってフォームフィールドを解析する関数
-async function analyzeFormWithAI(formElement, apiKey, model, formContext = '', useAdvancedDetection = true) {
+async function analyzeFormWithAI(formElement, apiKey, model, formContext = '') {
   // フォーム内の入力要素を取得
   const inputElements = formElement.querySelectorAll('input, textarea, select');
   if (!inputElements || inputElements.length === 0) {
@@ -160,17 +69,6 @@ async function analyzeFormWithAI(formElement, apiKey, model, formContext = '', u
   const formFields = Array.from(inputElements).map(element => {
     // 基本的なラベル検出
     let label = findLabelForElement(element);
-    let surroundingText = '';
-    
-    // 高度なコンテキスト検出が有効な場合
-    if (useAdvancedDetection && (!label || label.trim() === '') && (!element.id && !element.name)) {
-      console.log('高度なコンテキスト検出を使用中', element);
-      const analysis = analyzeSurroundingText(element);
-      if (analysis.bestLabel) {
-        label = analysis.bestLabel;
-      }
-      surroundingText = analysis.surroundingText;
-    }
     
     return {
       id: element.id,
@@ -178,8 +76,7 @@ async function analyzeFormWithAI(formElement, apiKey, model, formContext = '', u
       type: element.type,
       placeholder: element.placeholder,
       label: label,
-      required: element.required,
-      surroundingText: surroundingText
+      required: element.required
     };
   });
 
@@ -213,7 +110,6 @@ async function analyzeFormWithAI(formElement, apiKey, model, formContext = '', u
 
 注意:
 - フィールドIDがない場合は、nameまたはlabelを使用してください
-- surroundingTextが提供されている場合は、それを参考にしてフィールドの目的を推測してください
 - 実際の値のみを含め、説明やコメントは含めないでください
 - 妥当な日本語の値を使用してください（例: 名前なら「山田太郎」など）
 - メールアドレスには有効な形式を使用してください（例: user@example.com）
@@ -330,9 +226,8 @@ function parseAIResponse(responseText, formFields) {
       for (const field of formFields) {
         const fieldId = field.id || field.name;
         const fieldLabel = field.label ? field.label.toLowerCase() : '';
-        const surroundingText = field.surroundingText ? field.surroundingText.toLowerCase() : '';
         
-        if (!fieldId && !fieldLabel && !surroundingText) continue;
+        if (!fieldId && !fieldLabel) continue;
         
         // プロパティを直接検索
         if (fieldId && parsedJson[fieldId] !== undefined) {
@@ -358,17 +253,6 @@ function parseAIResponse(responseText, formFields) {
             result[fieldId || fieldLabel] = parsedJson[key];
             break;
           }
-          
-          // 周囲テキストを使用した検索（高度な検出の場合）
-          if (surroundingText) {
-            const words = surroundingText.split(/\s+/);
-            for (const word of words) {
-              if (word.length > 3 && keyLower.includes(word)) {
-                result[fieldId || fieldLabel || key] = parsedJson[key];
-                break;
-              }
-            }
-          }
         }
       }
     }
@@ -390,9 +274,8 @@ function parseAIResponse(responseText, formFields) {
             for (const field of formFields) {
               const fieldId = field.id || field.name;
               const fieldLabel = field.label ? field.label.toLowerCase() : '';
-              const surroundingText = field.surroundingText ? field.surroundingText.toLowerCase() : '';
               
-              if (!fieldId && !fieldLabel && !surroundingText) continue;
+              if (!fieldId && !fieldLabel) continue;
               
               // 完全一致
               if ((fieldId && key === fieldId.toLowerCase()) || 
@@ -408,17 +291,6 @@ function parseAIResponse(responseText, formFields) {
                   (fieldLabel && fieldLabel.includes(key))) {
                 result[fieldId || fieldLabel] = value;
                 break;
-              }
-              
-              // 周囲テキストを使用した一致
-              if (surroundingText) {
-                const words = surroundingText.split(/\s+/);
-                for (const word of words) {
-                  if (word.length > 3 && key.includes(word)) {
-                    result[fieldId || fieldLabel || key] = value;
-                    break;
-                  }
-                }
               }
             }
           }
@@ -451,23 +323,6 @@ function parseAIResponse(responseText, formFields) {
             result[fieldId] = 'user@example.com';
           } else if (field.placeholder.toLowerCase().includes('name')) {
             result[fieldId] = '山田太郎';
-          }
-        } else if (field.surroundingText) {
-          // 周囲テキストから推測
-          const surroundingText = field.surroundingText.toLowerCase();
-          if (surroundingText.includes('メール') || surroundingText.includes('email')) {
-            result[fieldId] = 'user@example.com';
-          } else if (surroundingText.includes('名前') || surroundingText.includes('氏名') || 
-                    surroundingText.includes('name')) {
-            result[fieldId] = '山田太郎';
-          } else if (surroundingText.includes('電話') || surroundingText.includes('tel') || 
-                    surroundingText.includes('phone')) {
-            result[fieldId] = '090-1234-5678';
-          } else if (surroundingText.includes('住所') || surroundingText.includes('address')) {
-            result[fieldId] = '東京都渋谷区渋谷1-1-1';
-          } else if (surroundingText.includes('郵便') || surroundingText.includes('postal') || 
-                    surroundingText.includes('zip')) {
-            result[fieldId] = '123-4567';
           }
         }
       }
@@ -548,8 +403,6 @@ window.directExecute = function(action, apiKey, model, options = {}) {
   if (action === 'autoFillForms') {
     // フォームコンテキスト情報
     const formContext = options.formContext || '';
-    const useAdvancedDetection = options.useAdvancedDetection !== undefined ? 
-      options.useAdvancedDetection : true;
     
     // 非同期処理を即時実行関数で実行
     (async () => {
@@ -567,7 +420,7 @@ window.directExecute = function(action, apiKey, model, options = {}) {
         }
         
         // 最初のフォームに対して処理を実行
-        const fieldValues = await analyzeFormWithAI(forms[0], apiKey, model, formContext, useAdvancedDetection);
+        const fieldValues = await analyzeFormWithAI(forms[0], apiKey, model, formContext);
         if (fieldValues && Object.keys(fieldValues).length > 0) {
           fillFormFields(forms[0], fieldValues);
           return { 
@@ -622,7 +475,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'autoFillForms') {
-    const { apiKey, model, formContext, useAdvancedDetection } = message;
+    const { apiKey, model, formContext } = message;
     
     if (!apiKey) {
       console.error('APIキーがありません');
@@ -653,8 +506,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           forms[0], 
           apiKey, 
           model, 
-          formContext, 
-          useAdvancedDetection !== undefined ? useAdvancedDetection : true
+          formContext
         );
         console.log('解析結果:', fieldValues);
         
