@@ -2,7 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // DOM要素の取得
   const apiKeyInput = document.getElementById('apiKey');
   const modelSelect = document.getElementById('model');
-  const useAIDetectionCheckbox = document.getElementById('useAIDetection');
+  const formContextInput = document.getElementById('formContext');
+  const useAdvancedDetectionCheckbox = document.getElementById('useAdvancedDetection');
   const saveSettingsButton = document.getElementById('saveSettingsButton');
   const settingsSavedMessage = document.getElementById('settingsSavedMessage');
   const autoFillButton = document.getElementById('autoFillButton');
@@ -13,8 +14,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (result.apiSettings) {
       apiKeyInput.value = result.apiSettings.apiKey || '';
       modelSelect.value = result.apiSettings.model || 'gpt-3.5-turbo';
-      if (useAIDetectionCheckbox) {
-        useAIDetectionCheckbox.checked = result.apiSettings.useAIDetection || false;
+      if (formContextInput) {
+        formContextInput.value = result.apiSettings.formContext || '';
+      }
+      if (useAdvancedDetectionCheckbox) {
+        // デフォルトはtrueだが、保存された設定があればそれを使用
+        useAdvancedDetectionCheckbox.checked = 
+          result.apiSettings.useAdvancedDetection !== undefined ? 
+          result.apiSettings.useAdvancedDetection : true;
       }
     }
   });
@@ -25,7 +32,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiSettings = {
       apiKey: apiKeyInput.value,
       model: modelSelect.value,
-      useAIDetection: useAIDetectionCheckbox ? useAIDetectionCheckbox.checked : false
+      formContext: formContextInput ? formContextInput.value : '',
+      useAdvancedDetection: useAdvancedDetectionCheckbox ? useAdvancedDetectionCheckbox.checked : true
     };
     
     // データを保存
@@ -93,7 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     action: 'autoFillForms',
                     apiKey: result.apiSettings.apiKey,
                     model: result.apiSettings.model || 'gpt-3.5-turbo',
-                    useAIDetection: result.apiSettings.useAIDetection || false
+                    formContext: result.apiSettings.formContext || '',
+                    useAdvancedDetection: result.apiSettings.useAdvancedDetection !== undefined ? 
+                      result.apiSettings.useAdvancedDetection : true
                   },
                   function(response) {
                     console.log('content-scriptからのレスポンス:', response);
@@ -142,6 +152,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function executeDirectFill(tabId, apiSettings, messageElement) {
   console.log('直接実行を試みます', apiSettings);
   
+  // フォームコンテキストをエスケープして安全に扱う
+  const safeFormContext = apiSettings.formContext ? 
+    apiSettings.formContext.replace(/'/g, "\\'").replace(/\n/g, "\\n") : '';
+  
+  // 高度な検出オプション
+  const useAdvancedDetection = apiSettings.useAdvancedDetection !== undefined ?
+    apiSettings.useAdvancedDetection : true;
+  
   chrome.tabs.executeScript(
     tabId,
     {
@@ -149,7 +167,10 @@ function executeDirectFill(tabId, apiSettings, messageElement) {
         // content-scriptの関数を直接呼び出す
         if (typeof window.directExecute === 'function') {
           console.log('directExecuteを実行します');
-          window.directExecute('autoFillForms', '${apiSettings.apiKey}', '${apiSettings.model || 'gpt-3.5-turbo'}', { useAIDetection: ${apiSettings.useAIDetection || false} });
+          window.directExecute('autoFillForms', '${apiSettings.apiKey}', '${apiSettings.model || 'gpt-3.5-turbo'}', { 
+            formContext: '${safeFormContext}',
+            useAdvancedDetection: ${useAdvancedDetection}
+          });
         } else if (typeof window.detectForms === 'function') {
           console.log('content-scriptの関数は存在しますが、directExecuteがありません');
           { success: false, message: 'バージョンの不一致: 拡張機能を再読み込みしてください' };

@@ -24,6 +24,10 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
     small {
       color: #666;
       display: block;
@@ -57,6 +61,19 @@
     .container {
       padding: 6px 12px;
     }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-top: 5px;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    .checkbox-group label {
+      display: inline;
+      font-weight: normal;
+    }
   </style>
 </head>
 <body>
@@ -78,10 +95,17 @@
     </div>
     
     <div class="form-group">
-      <label>
-        <input type="checkbox" id="useAIDetection"> AIによるフォーム検出を使用する
-      </label>
-      <small>複雑なフォーム、ページネーションのあるフォーム（Google Formなど）の検出精度が向上します</small>
+      <label for="formContext">フォームコンテキスト情報:</label>
+      <textarea id="formContext" placeholder="フォームの目的や必要な入力情報について説明してください。例: 「これは求人応募フォームで、エンジニアのポジションに応募したいです」"></textarea>
+      <small>AIがフォームをより適切に理解し、最適な値を入力するための補助情報を入力します</small>
+    </div>
+    
+    <div class="form-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="useAdvancedDetection" checked>
+        <label for="useAdvancedDetection">高度な検出を使用</label>
+      </div>
+      <small>IDやname属性がないフィールドを検出するため、周囲のテキストから入力欄の目的を推測します</small>
     </div>
     
     <button id="saveSettingsButton">設定を保存</button>
