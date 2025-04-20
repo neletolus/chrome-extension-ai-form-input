@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // DOM要素の取得
   const apiKeyInput = document.getElementById('apiKey');
   const modelSelect = document.getElementById('model');
+  const useAIDetectionCheckbox = document.getElementById('useAIDetection');
   const saveSettingsButton = document.getElementById('saveSettingsButton');
   const settingsSavedMessage = document.getElementById('settingsSavedMessage');
   const autoFillButton = document.getElementById('autoFillButton');
@@ -12,6 +13,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (result.apiSettings) {
       apiKeyInput.value = result.apiSettings.apiKey || '';
       modelSelect.value = result.apiSettings.model || 'gpt-3.5-turbo';
+      if (useAIDetectionCheckbox) {
+        useAIDetectionCheckbox.checked = result.apiSettings.useAIDetection || false;
+      }
     }
   });
   
@@ -20,7 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // APIキー設定を取得
     const apiSettings = {
       apiKey: apiKeyInput.value,
-      model: modelSelect.value
+      model: modelSelect.value,
+      useAIDetection: useAIDetectionCheckbox ? useAIDetectionCheckbox.checked : false
     };
     
     // データを保存
@@ -87,7 +92,8 @@ document.addEventListener('DOMContentLoaded', function() {
                   {
                     action: 'autoFillForms',
                     apiKey: result.apiSettings.apiKey,
-                    model: result.apiSettings.model || 'gpt-3.5-turbo'
+                    model: result.apiSettings.model || 'gpt-3.5-turbo',
+                    useAIDetection: result.apiSettings.useAIDetection || false
                   },
                   function(response) {
                     console.log('content-scriptからのレスポンス:', response);
@@ -134,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 直接実行関数
 function executeDirectFill(tabId, apiSettings, messageElement) {
-  console.log('直接実行を試みます');
+  console.log('直接実行を試みます', apiSettings);
   
   chrome.tabs.executeScript(
     tabId,
@@ -143,7 +149,7 @@ function executeDirectFill(tabId, apiSettings, messageElement) {
         // content-scriptの関数を直接呼び出す
         if (typeof window.directExecute === 'function') {
           console.log('directExecuteを実行します');
-          window.directExecute('autoFillForms', '${apiSettings.apiKey}', '${apiSettings.model || 'gpt-3.5-turbo'}', { useAIDetection: true });
+          window.directExecute('autoFillForms', '${apiSettings.apiKey}', '${apiSettings.model || 'gpt-3.5-turbo'}', { useAIDetection: ${apiSettings.useAIDetection || false} });
         } else if (typeof window.detectForms === 'function') {
           console.log('content-scriptの関数は存在しますが、directExecuteがありません');
           { success: false, message: 'バージョンの不一致: 拡張機能を再読み込みしてください' };

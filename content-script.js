@@ -39,12 +39,8 @@ function detectForms() {
 
 // AIを使用してフォーム要素を検出する拡張関数
 async function detectFormsWithAI(apiKey, model) {
-  // 既存のdetectForms関数を使って基本的な検出を行う
-  const basicForms = detectForms();
-  if (basicForms.length > 0) {
-    console.log('基本的な方法でフォームを検出しました');
-    return basicForms;
-  }
+  // AI検出を常に優先する場合は基本検出をスキップする
+  // 基本的なフォーム検出は最終的なフォールバックとしてのみ使用
   
   // ページのHTML構造を分析して高度なフォーム検出を行う
   console.log('AIを使用した高度なフォーム検出を実行します');
@@ -119,7 +115,7 @@ ${JSON.stringify(pageInfo, null, 2)}
           }
         ],
         temperature: 0.2,
-        response_format: { type: "json_object" }
+        ...(model.includes('gpt-4') ? {} : { response_format: { type: "json_object" } })
       })
     });
 
@@ -193,13 +189,22 @@ ${JSON.stringify(pageInfo, null, 2)}
       }
     }
     
-    // AIでも検出できなかった場合、空の結果を返す
-    console.log('AIでもフォームを検出できませんでした');
+    // AIでフォームが検出できなかった場合、基本的なフォーム検出を試みる
+    console.log('AIでフォームが検出できなかったため、基本的なフォーム検出を試みます');
+    const basicForms = detectForms();
+    if (basicForms.length > 0) {
+      console.log('基本的な方法でフォームを検出しました');
+      return basicForms;
+    }
+    
+    // どの方法でも検出できなかった場合、空の結果を返す
+    console.log('どの方法でもフォームを検出できませんでした');
     return [];
     
   } catch (error) {
     console.error('AIフォーム検出エラー:', error);
     // エラーの場合は基本検出の結果を返す
+    const basicForms = detectForms();
     return basicForms.length > 0 ? basicForms : [];
   }
 }
@@ -309,7 +314,7 @@ ${JSON.stringify(editableFields, null, 2)}
           }
         ],
         temperature: 0.2,  // より決定論的な結果を得るために低い値を設定
-        response_format: { type: "json_object" }  // JSON形式の応答を要求
+        ...(model.includes('gpt-4') ? {} : { response_format: { type: "json_object" } })  // JSON形式の応答を要求
       })
     });
 
@@ -548,9 +553,16 @@ window.directExecute = function(action, apiKey, model, options = {}) {
     (async () => {
       try {
         // フォーム検出方法を選択
-        const forms = useAIDetection 
-          ? await detectFormsWithAI(apiKey, model) 
-          : detectForms();
+        let forms;
+        if (useAIDetection) {
+          // AIによるフォーム検出を優先
+          console.log('AIフォーム検出を使用します');
+          forms = await detectFormsWithAI(apiKey, model);
+        } else {
+          // 通常のフォーム検出を使用
+          console.log('通常のフォーム検出を使用します');
+          forms = detectForms();
+        }
           
         if (forms.length === 0) {
           console.error('フォームが見つかりませんでした');
@@ -630,9 +642,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         // フォーム検出方法を選択（AI検出または通常検出）
-        const forms = useAIDetection 
-          ? await detectFormsWithAI(apiKey, model) 
-          : detectForms();
+        let forms;
+        if (useAIDetection) {
+          // AIによるフォーム検出を優先
+          console.log('AIフォーム検出を使用します');
+          forms = await detectFormsWithAI(apiKey, model);
+        } else {
+          // 通常のフォーム検出を使用
+          console.log('通常のフォーム検出を使用します');
+          forms = detectForms();
+        }
         
         if (forms.length === 0) {
           console.error('フォームが見つかりませんでした');
