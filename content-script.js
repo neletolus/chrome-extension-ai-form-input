@@ -37,25 +37,6 @@ function detectForms() {
   return [];
 }
 
-// 要素が視覚的に見えるかチェック
-function isElementVisible(element) {
-  const style = window.getComputedStyle(element);
-  return style.display !== 'none' && 
-         style.visibility !== 'hidden' && 
-         style.opacity !== '0';
-}
-
-// 要素の位置情報を取得
-function getElementPosition(element) {
-  const rect = element.getBoundingClientRect();
-  return {
-    top: rect.top,
-    left: rect.left,
-    bottom: rect.bottom,
-    right: rect.right
-  };
-}
-
 // OpenAIのAPIを使ってフォームフィールドを解析する関数
 async function analyzeFormWithAI(formElement, apiKey, model, formContext = '') {
   // フォーム内の入力要素を取得
